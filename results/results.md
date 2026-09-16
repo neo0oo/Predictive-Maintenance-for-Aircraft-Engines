@@ -34,7 +34,24 @@ reproducible.
 
 ## FD002 — 6 operating conditions, 1 fault mode
 
-*Not yet trained.*
+| Approach | RMSE | R² |
+|---|---|---|
+| XGBoost (single split, tuned) | 18.54 | 0.8031 |
+| XGBoost (5-fold CV, avg) | 18.58 ± 0.71 | 0.8008 ± 0.02 |
+| LSTM (window search) | 13.95 | 0.8852 |
+
+<details>
+<summary>CV per-fold breakdown</summary>
+
+| Fold | RMSE | R² |
+|---|---|---|
+| 1 | 18.54 | 0.8031 |
+| 2 | 19.95 | 0.7709 |
+| 3 | 18.13 | 0.8102 |
+| 4 | 17.95 | 0.8135 |
+| 5 | 18.31 | 0.8066 |
+
+</details>
 
 ## FD003 — 1 operating condition, 2 fault modes
 
