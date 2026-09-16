@@ -77,4 +77,22 @@ reproducible.
 
 ## FD004 — 6 operating conditions, 2 fault modes
 
-*Not yet trained.*
+| Approach | RMSE | R² |
+|---|---|---|
+| XGBoost (single split, tuned) | 19.17 | 0.7801 |
+| XGBoost (5-fold CV, avg) | 17.02 ± 1.41 | 0.8238 ± 0.03 |
+| LSTM (window search) | 19.50 | 0.7841 |
+
+<details>
+<summary>CV per-fold breakdown</summary>
+
+| Fold | RMSE | R² |
+|---|---|---|
+| 1 | 19.17 | 0.7801 |
+| 2 | 17.36 | 0.8181 |
+| 3 | 17.18 | 0.8200 |
+| 4 | 16.58 | 0.8354 |
+| 5 | 14.80 | 0.8656 |
+
+</details>
+
