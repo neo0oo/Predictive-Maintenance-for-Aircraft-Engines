@@ -48,10 +48,12 @@ def engineer_features(fit_df, *apply_dfs):
     for f in frames:
         f[informative_sensors] = f[informative_sensors].astype(float)
 
+    scalers = {}
     for regime in range(N_REGIMES):
         scaler = StandardScaler()
         fit_mask = fit['regime'] == regime
         scaler.fit(fit.loc[fit_mask, informative_sensors])
+        scalers[regime] = scaler
         for f in frames:
             mask = f['regime'] == regime
             if mask.any():
@@ -88,7 +90,8 @@ def engineer_features(fit_df, *apply_dfs):
         + [f'{c}_rollstd' for c in informative_sensors]
     )
 
-    return frames, feature_cols, informative_sensors, near_constant
+    fitted = {'kmeans': kmeans, 'regime_scalers': scalers}
+    return frames, feature_cols, informative_sensors, near_constant, fitted
 
 
 # split by engine unit, same as FD001
@@ -98,7 +101,7 @@ train_units, val_units = train_test_split(unit_IDs, test_size=0.2, random_state=
 train_raw = df[df['unit'].isin(train_units)].reset_index(drop=True)
 val_raw = df[df['unit'].isin(val_units)].reset_index(drop=True)
 
-(train_df, val_df), feature_cols, informative_sensors, near_constant = engineer_features(train_raw, val_raw)
+(train_df, val_df), feature_cols, informative_sensors, near_constant, fitted = engineer_features(train_raw, val_raw)
 
 print("dropping sensors that are flat (relative CV) within every regime:", near_constant)
 print("regime sizes (train):")
@@ -157,7 +160,7 @@ for fold, (tr_idx, va_idx) in enumerate(kf.split(unit_IDs)):
     fold_train_raw = df[df['unit'].isin(fold_train_units)].reset_index(drop=True)
     fold_val_raw = df[df['unit'].isin(fold_val_units)].reset_index(drop=True)
 
-    (fold_train_df, fold_val_df), fold_feature_cols, _, _ = engineer_features(fold_train_raw, fold_val_raw)
+    (fold_train_df, fold_val_df), fold_feature_cols, _, _, _ = engineer_features(fold_train_raw, fold_val_raw)
 
     X_tr = fold_train_df[fold_feature_cols]
     y_tr = fold_train_df['RUL']
@@ -269,3 +272,29 @@ lstm_rmse = np.sqrt(mean_squared_error(y_val, lstm_preds))
 lstm_r2 = r2_score(y_val, lstm_preds)
 print(f"LSTM Validation RMSE: {lstm_rmse:.2f} cycles")
 print(f"LSTM Validation R²: {lstm_r2:.4f}")
+
+# --- persist trained models + preprocessing for later test-set evaluation ---
+import joblib
+from pathlib import Path
+
+ARTIFACT_DIR = Path("models/artifacts/FD002")
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+joblib.dump(model, ARTIFACT_DIR / "tree_model.joblib")
+lstm_model.save(ARTIFACT_DIR / "lstm_model.keras")
+
+joblib.dump({
+    'op_cols': OP_COLS,
+    'sensor_cols': SENSOR_COLS,
+    'n_regimes': N_REGIMES,
+    'roll_window': ROLL_WINDOW,
+    'kmeans': fitted['kmeans'],
+    'regime_scalers': fitted['regime_scalers'],
+    'informative_sensors': informative_sensors,
+    'near_constant': near_constant,
+    'feature_cols': feature_cols,
+    'window': WINDOW,
+    'cap': CAP,
+}, ARTIFACT_DIR / "preprocessing.joblib")
+
+print(f"\nSaved trained models and preprocessing to {ARTIFACT_DIR}/")

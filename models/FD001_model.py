@@ -41,6 +41,7 @@ train_df['RUL'] = train_df['RUL'].clip(upper=CAP)
 val_df['RUL'] = val_df['RUL'].clip(upper=CAP)
 
 feature_cols = [c for c in train_df.columns if c not in ['unit', 'RUL']]
+tree_feature_cols = list(feature_cols)
 
 X_train = train_df[feature_cols]
 y_train = train_df['RUL']
@@ -49,11 +50,11 @@ X_val = val_df[feature_cols]
 y_val = val_df['RUL']
 
 # training the baseline random forest model
-model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+rf_model.fit(X_train, y_train)
 
 # making predictions on the validation set
-preds = model.predict(X_val)
+preds = rf_model.predict(X_val)
 rmse = np.sqrt(mean_squared_error(y_val, preds))
 print(f"Validation RMSE: {rmse:.2f} cycles")
 r_2 = r2_score(y_val, preds)
@@ -145,3 +146,25 @@ rmse = np.sqrt(mean_squared_error(y_val, preds))
 r2 = r2_score(y_val, preds)
 print(f"LSTM Validation RMSE: {rmse:.2f} cycles")
 print(f"LSTM Validation R²: {r2:.4f}")
+
+# --- persist trained models + preprocessing for later test-set evaluation ---
+import joblib
+from pathlib import Path
+
+ARTIFACT_DIR = Path("models/artifacts/FD001")
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+joblib.dump(rf_model, ARTIFACT_DIR / "tree_model.joblib")
+model.save(ARTIFACT_DIR / "lstm_model.keras")
+
+joblib.dump({
+    'sensor_cols': sensor_cols,
+    'tree_feature_cols': tree_feature_cols,
+    'lstm_feature_cols': feature_cols,
+    'lstm_scaler': scaler,
+    'window': WINDOW,
+    'roll_window': window,
+    'cap': CAP,
+}, ARTIFACT_DIR / "preprocessing.joblib")
+
+print(f"\nSaved trained models and preprocessing to {ARTIFACT_DIR}/")

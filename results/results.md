@@ -96,3 +96,40 @@ reproducible.
 
 </details>
 
+## Test Set Evaluation
+
+Everything above is on an internal 80/20 validation split carved out of the training
+engines. This section is the real held-out benchmark: the official `test_FD00x`
+trajectories (which the models never saw at all) scored against `RUL_FD00x`, the true
+answer key. Test trajectories are truncated mid-life rather than run to failure, so
+each engine contributes exactly one prediction - from its last available cycle for the
+tree model, from its last window of cycles for the LSTM - compared against that
+engine's single true RUL value (also capped at 125, matching the training target).
+
+### FD001
+
+| Approach | RMSE | R² |
+|---|---|---|
+| Random Forest | 18.12 | 0.7955 |
+| LSTM | 16.49 | 0.8306 |
+
+### FD002
+
+| Approach | RMSE | R² |
+|---|---|---|
+| XGBoost | 16.57 | 0.8510 |
+| LSTM | 14.44 | 0.8870 |
+
+### FD003
+
+| Approach | RMSE | R² |
+|---|---|---|
+| XGBoost | 20.06 | 0.7377 |
+| LSTM | 17.26 | 0.8057 |
+
+### FD004
+
+| Approach | RMSE | R² |
+|---|---|---|
+| XGBoost | 19.16 | 0.8013 |
+| LSTM | 19.94 | 0.7847 |

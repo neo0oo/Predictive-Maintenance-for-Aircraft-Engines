@@ -92,7 +92,8 @@ def engineer_features(fit_df, *apply_dfs):
         + [f'{c}_rollstd' for c in informative_sensors]
     )
 
-    return frames, feature_cols, informative_sensors, near_constant, fit_cluster_map
+    fitted = {'trend_scaler': trend_scaler, 'fault_kmeans': fault_kmeans}
+    return frames, feature_cols, informative_sensors, near_constant, fit_cluster_map, fitted
 
 
 # split by engine unit, same as FD001/FD002
@@ -102,7 +103,7 @@ train_units, val_units = train_test_split(unit_IDs, test_size=0.2, random_state=
 train_raw = df[df['unit'].isin(train_units)].reset_index(drop=True)
 val_raw = df[df['unit'].isin(val_units)].reset_index(drop=True)
 
-(train_df, val_df), feature_cols, informative_sensors, near_constant, train_cluster_map = engineer_features(train_raw, val_raw)
+(train_df, val_df), feature_cols, informative_sensors, near_constant, train_cluster_map, fitted = engineer_features(train_raw, val_raw)
 
 print("dropping sensors that are flat (relative CV):", near_constant)
 print(f"informative sensors kept: {len(informative_sensors)}")
@@ -172,7 +173,7 @@ for fold, (tr_idx, va_idx) in enumerate(kf.split(unit_IDs)):
     fold_train_raw = df[df['unit'].isin(fold_train_units)].reset_index(drop=True)
     fold_val_raw = df[df['unit'].isin(fold_val_units)].reset_index(drop=True)
 
-    (fold_train_df, fold_val_df), fold_feature_cols, _, _, _ = engineer_features(fold_train_raw, fold_val_raw)
+    (fold_train_df, fold_val_df), fold_feature_cols, _, _, _, _ = engineer_features(fold_train_raw, fold_val_raw)
 
     X_tr = fold_train_df[fold_feature_cols]
     y_tr = fold_train_df['RUL']
@@ -283,3 +284,28 @@ lstm_rmse = np.sqrt(mean_squared_error(y_val, lstm_preds))
 lstm_r2 = r2_score(y_val, lstm_preds)
 print(f"LSTM Validation RMSE: {lstm_rmse:.2f} cycles")
 print(f"LSTM Validation R²: {lstm_r2:.4f}")
+
+# --- persist trained models + preprocessing for later test-set evaluation ---
+import joblib
+from pathlib import Path
+
+ARTIFACT_DIR = Path("models/artifacts/FD003")
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+joblib.dump(model, ARTIFACT_DIR / "tree_model.joblib")
+lstm_model.save(ARTIFACT_DIR / "lstm_model.keras")
+
+joblib.dump({
+    'sensor_cols': SENSOR_COLS,
+    'roll_window': ROLL_WINDOW,
+    'trend_scaler': fitted['trend_scaler'],
+    'fault_kmeans': fitted['fault_kmeans'],
+    'informative_sensors': informative_sensors,
+    'near_constant': near_constant,
+    'feature_cols': feature_cols,
+    'lstm_scaler': scaler,
+    'window': WINDOW,
+    'cap': CAP,
+}, ARTIFACT_DIR / "preprocessing.joblib")
+
+print(f"\nSaved trained models and preprocessing to {ARTIFACT_DIR}/")
